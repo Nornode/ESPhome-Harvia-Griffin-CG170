@@ -1,0 +1,17 @@
+# ESPHome build artifacts and cache
+.esphome/
+*.bin
+*.elf
+
+# Secrets
+secrets.yaml
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*~
