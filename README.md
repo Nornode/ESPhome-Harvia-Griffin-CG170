@@ -189,21 +189,21 @@ If you do not want to open the display housing, you can split the 4-wire cable a
 ├── sauna_mitm.yaml             # Main ESPHome configuration
 ├── harvia_griffin.h            # C++ packet parser and Home Assistant sync engine
 ├── secrets.yaml.example        # Template for WiFi credentials
-├── docs/
-│   ├── images/                 # Hardware & display pictures
-│   ├── PROTOCOL_SPEC.md        # Complete byte-level reverse-engineered specification
-│   ├── DISPLAY_BOARD_TEARDOWN.md # Teardown notes & component identification
-│   ├── HARVIA_CG170_NOTES.md   # Initial hardware exploration notes
-│   └── PROJECT_PLAN.md         # Architecture and phased roadmap
-└── harvia_cg170_*.csv          # Raw Saleae Logic 2 signal captures
+├── logical_analyser/           # Raw Saleae Logic 2 CSV signal captures
+└── docs/
+    ├── images/                 # Hardware & display pictures
+    ├── PROTOCOL_SPEC.md        # Complete byte-level reverse-engineered specification
+    ├── DISPLAY_BOARD_TEARDOWN.md # Teardown notes & component identification
+    ├── HARVIA_CG170_NOTES.md   # Initial hardware exploration notes
+    └── PROJECT_PLAN.md         # Architecture and phased roadmap
 ```
 
 ### 3. Configuration Steps
 
 1. **Clone this repository:**
    ```bash
-   git clone https://github.com/<your-username>/Harvia_MiM_ESP32.git
-   cd Harvia_MiM_ESP32
+   git clone https://github.com/Nornode/ESPhome-Harvia-Griffin-CG170.git
+   cd ESPhome-Harvia-Griffin-CG170
    ```
 
 2. **Create your `secrets.yaml` file:**
@@ -277,7 +277,7 @@ For full packet byte structures, command codes, and CRC implementation details, 
 ## 🗺️ Roadmap & Next Steps
 
 - [x] Hardware teardown & RS-485 transceiver pin identification ([DISPLAY_BOARD_TEARDOWN.md](docs/DISPLAY_BOARD_TEARDOWN.md))
-- [x] Logic analyzer signal captures at 10MS/s ([harvia_cg170_*.csv](.))
+- [x] Logic analyzer signal captures at 10MS/s ([logical_analyser/](logical_analyser/))
 - [x] Baud rate derivation (`7812.5 baud`) and CRC-16 verification
 - [x] Full protocol command mapping ([PROTOCOL_SPEC.md](docs/PROTOCOL_SPEC.md))
 - [x] Dual-channel passive sniffer implementation in ESPHome ([sauna_mitm.yaml](sauna_mitm.yaml))
