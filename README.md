@@ -23,6 +23,7 @@ An open-source ESPHome implementation for monitoring and interfacing with the **
 > This repository is an experimental, hobbyist reverse-engineering project developed with AI assistance. It is provided strictly for educational and research purposes.
 >
 > * **Personal Responsibility:** Any modifications, wiring, or connections you make to your sauna hardware are performed entirely at your own risk.
+> * **Hardware Scope & Limitations:** **This implementation has ONLY been tested with an original Harvia Griffin display (`WX350`) connected to a conventional electric sauna heater (CG170 power unit).** It has **NOT** been tested with Griffin Combi (steamers), Griffin Infrared, Harvia Xenio, or any other heater models. Behavior on unverified hardware configurations is completely unknown.
 > * **Electrical Safety:** Working on this project is **relatively safe** because all physical connections are made solely to the **low-voltage 12V DC power / 3.3V logic cable** between the display unit and power unit. **NEVER touch or open the 230V / 400V 3-phase mains compartment inside the main power unit or heater.** High voltage can cause severe electric shock or death.
 > * **Fire & Sauna Safety:** Saunas generate extreme heat. Never bypass factory safety switches, overheat cutouts, or temperature fuses. Ensure the sauna is empty and free of flammable items before any heating cycle.
 
@@ -119,7 +120,11 @@ The display is connected to the CG170 power unit via a 4-conductor modular cable
 
 ### 2. Connection Method A: Direct Display Board Sniffing (Recommended)
 
-The cleanest and easiest method to sniff bus traffic without cutting cables is tapping directly into the low-voltage 3.3V logic pins of the on-board RS-485 transceiver chip (**`SP485EE`**) on the display PCB:
+The cleanest and most reliable method to sniff bus traffic without cutting external cables is tapping directly into the low-voltage 3.3V logic pins of the on-board RS-485 transceiver chip (**`SP485EE`**) on the display PCB.
+
+> [!IMPORTANT]
+> **Soldering Required:**
+> You will need to carefully solder thin jumper wires (e.g., 30 AWG kynar or enameled magnet wire) directly to the SMD pins of the **`SP485EE`** 8-pin SOIC chip on the back of the display PCB.
 
 ```mermaid
 flowchart LR
@@ -134,21 +139,27 @@ flowchart LR
         G21[GPIO21 / Power Unit RX]
         G20[GPIO20 / Display RX]
         GND[GND]
+        V5[5V Pin]
     end
 
-    SP -- "Pin 1 (RO / Power Unit TX)" --> G21
-    SP -- "Pin 4 (DI / Display TX)" --> G20
-    SP -- "Pin 5 (GND)" --> GND
+    SP -- "Solder wire to Pin 1 (RO / Power Unit TX)" --> G21
+    SP -- "Solder wire to Pin 4 (DI / Display TX)" --> G20
+    SP -- "Solder wire to Pin 5 (GND)" --> GND
+    PWR[Display 5V Rail] -. "Power feed (YMMV)" .-> V5
 ```
 
-#### Pin Mapping Table
+#### Pin Mapping & Soldering Table
 
-| Source on Display Board | ESP32-C3 Super Mini Pin | Description |
-| :--- | :--- | :--- |
-| **SP485EE Pin 1 (`RO`)** | **`GPIO21`** (`power_unit_rx_pin`) | Captures incoming packets from Power Unit (`TQ*`) |
-| **SP485EE Pin 4 (`DI`)** | **`GPIO20`** (`display_rx_pin`) | Captures outgoing packets from Display (`TR*`) |
-| **SP485EE Pin 5 (`GND`)** or Debug Header Pin 2 | **`GND`** | Common ground reference |
-| **5V or 3.3V Step-down** | **`5V` / `3V3`** | Power for ESP32 (from USB or buck converter off 12V rail) |
+| Point on Display Board | Connection | ESP32-C3 Super Mini Pin | Description |
+| :--- | :--- | :--- | :--- |
+| **SP485EE Pin 1 (`RO`)** | Solder wire | **`GPIO21`** (`power_unit_rx_pin`) | Captures incoming packets from Power Unit (`TQ*`) |
+| **SP485EE Pin 4 (`DI`)** | Solder wire | **`GPIO20`** (`display_rx_pin`) | Captures outgoing packets from Display (`TR*`) |
+| **SP485EE Pin 5 (`GND`)** (or Debug Header Pin 2) | Solder wire | **`GND`** | Shared logic ground |
+| **Display Board 5V Rail** (or external step-down) | Solder wire / tap | **`5V` (VBUS/VIN)** | Powers the ESP32 (see note below) |
+
+> [!NOTE]
+> **Powering the ESP32 via the 5V Rail (YMMV):**
+> In the author's setup, the ESP32-C3 is powered directly via its **5V pin** fed from the display board's internal power rail. This works reliably in practice, but **YMMV (Your Mileage May Vary)** depending on the revision of your display board and the current draw of your specific ESP32 module. Always verify test point voltages and check with a multimeter before making permanent power connections! Alternatively, you can power the ESP32 via a separate USB-C adapter or an isolated 12V-to-5V DC-DC buck converter off the cable's 12V outer pair.
 
 ---
 
