@@ -82,6 +82,24 @@ The Harvia Griffin CG170 control panel (spare part `WX350` / board `SK038972`) f
 
 ---
 
+## 🏷️ Supported Hardware & Compatibility Matrix
+
+This project directly targets the Harvia Griffin digital ecosystem:
+
+| Item | Model / Identifier | Notes |
+| :--- | :--- | :--- |
+| **Power Unit** | **Harvia Griffin CG170** (`CG170400`) | Main switchboard / contactor box (Type `CG110`) |
+| **Combi Variant** | **Harvia Griffin CG170C** (`CG170400C`) | Steamer / combi heater variant |
+| **Infrared Variant**| **Harvia Griffin CG170I** (`CG36230`) | Infrared panel variant |
+| **Control Panel** | **Harvia Griffin Display (`WX350`)** | Chrome digital wall display (PCB: `SK038972`) |
+| **Display MCU** | **NXP/Freescale MC9S08GT32** | 8-bit MCU (`MC9S08GT32ACFBE`) running at 3.3V |
+| **Transceiver** | **Sipex SP485EE** | On-board RS-485 transceiver (Pin 1 `RO`, Pin 4 `DI`) |
+| **Cable / Plug** | **4-wire modular (RJ10 / 4P4C)** | Outer pair = 12V DC power, Inner pair = RS-485 data |
+| **Known Errors**| **Harvia Error `E9`** | Inter-board serial heartbeat timeout or framing error |
+
+---
+
+
 ## 🔌 Hardware Connections Guide
 
 ### 1. Understanding the Cable & Pinout
