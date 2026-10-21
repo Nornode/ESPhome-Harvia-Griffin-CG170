@@ -128,25 +128,28 @@ The cleanest and most reliable method to sniff bus traffic without cutting exter
 
 ```mermaid
 flowchart LR
-    subgraph Harvia Display Board
-        SP[SP485EE Transceiver]
-        MCU[MC9S08 Display MCU]
+    subgraph Display Board
+        SP["SP485EE Transceiver (SOIC-8)"]
+        MCU["MC9S08 Display MCU"]
         SP -- Pin 1: RO (3.3V TTL) --> MCU
         MCU -- Pin 4: DI (3.3V TTL) --> SP
     end
 
     subgraph ESP32-C3 SuperMini
-        G21[GPIO21 / Power Unit RX]
-        G20[GPIO20 / Display RX]
-        GND[GND]
-        V5[5V Pin]
+        G21["GPIO21 (Power Unit RX)"]
+        G20["GPIO20 (Display RX)"]
+        GND["GND"]
+        V5["5V (VBUS / VIN)"]
     end
 
-    SP -- "Solder wire to Pin 1 (RO / Power Unit TX)" --> G21
-    SP -- "Solder wire to Pin 4 (DI / Display TX)" --> G20
-    SP -- "Solder wire to Pin 5 (GND)" --> GND
-    PWR[Display 5V Rail] -. "Power feed (YMMV)" .-> V5
+    SP -- "Solder: Pin 1 (RO / PU TX)" --> G21
+    SP -- "Solder: Pin 4 (DI / Display TX)" --> G20
+    SP -- "Solder: Pin 5 (GND)" --> GND
+    SP -. "Solder: Pin 8 (VCC / 5V Rail)*" .-> V5
 ```
+
+> ⚠️ **Wiring Note on 5V Power:**  
+> \*See [**Powering the ESP32 via the 5V Rail (YMMV)**](#powering-the-esp32-via-the-5v-rail-ymmv) below before connecting power directly to the ESP32.
 
 #### Pin Mapping & Soldering Table
 
@@ -155,11 +158,12 @@ flowchart LR
 | **SP485EE Pin 1 (`RO`)** | Solder wire | **`GPIO21`** (`power_unit_rx_pin`) | Captures incoming packets from Power Unit (`TQ*`) |
 | **SP485EE Pin 4 (`DI`)** | Solder wire | **`GPIO20`** (`display_rx_pin`) | Captures outgoing packets from Display (`TR*`) |
 | **SP485EE Pin 5 (`GND`)** (or Debug Header Pin 2) | Solder wire | **`GND`** | Shared logic ground |
-| **Display Board 5V Rail** (or external step-down) | Solder wire / tap | **`5V` (VBUS/VIN)** | Powers the ESP32 (see note below) |
+| **SP485EE Pin 8 (`VCC`) / 5V Rail** | Solder wire | **`5V` (VBUS/VIN)** | Powers the ESP32 ([Read YMMV Note](#powering-the-esp32-via-the-5v-rail-ymmv)) |
 
+<a id="powering-the-esp32-via-the-5v-rail-ymmv"></a>
 > [!NOTE]
 > **Powering the ESP32 via the 5V Rail (YMMV):**
-> In the author's setup, the ESP32-C3 is powered directly via its **5V pin** fed from the display board's internal power rail. This works reliably in practice, but **YMMV (Your Mileage May Vary)** depending on the revision of your display board and the current draw of your specific ESP32 module. Always verify test point voltages and check with a multimeter before making permanent power connections! Alternatively, you can power the ESP32 via a separate USB-C adapter or an isolated 12V-to-5V DC-DC buck converter off the cable's 12V outer pair.
+> In the author's setup, the ESP32-C3 is powered directly via its **5V pin** fed from the display board's internal power rail (tapped at the SP485EE `VCC` rail / 5V test point). This works reliably in practice, but **YMMV (Your Mileage May Vary)** depending on the revision of your display board and the current draw of your specific ESP32 module. Always verify test point voltages and check with a multimeter before making permanent power connections! Alternatively, you can power the ESP32 via a separate USB-C adapter or an isolated 12V-to-5V DC-DC buck converter off the cable's 12V outer pair.
 
 ---
 
