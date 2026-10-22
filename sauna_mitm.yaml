@@ -80,6 +80,9 @@ uart:
         - lambda: |-
             UARTDebug::log_hex(direction, bytes, ' ');
             harvia_process_packet(bytes, "DISPLAY");
+            id(sauna_temperature).update();
+            id(sauna_target_temperature).update();
+            id(sauna_timer_remaining).update();
 
   # Channel B: Power Unit -> Display (tapped at SP485 Pin 1)
   - id: power_unit_uart
@@ -99,23 +102,9 @@ uart:
         - lambda: |-
             UARTDebug::log_hex(direction, bytes, ' ');
             harvia_process_packet(bytes, "PWR_UNIT");
-
-# Rate-limiting sync engine: Checks every second, but only publishes
-# changed states to Home Assistant at most once every 60s.
-interval:
-  - interval: 1s
-    then:
-      - lambda: |-
-          harvia_sync_to_homeassistant(
-            id(sauna_temperature),
-            id(sauna_target_temperature),
-            id(sauna_timer_remaining),
-            id(sauna_heater_state),
-            id(sauna_light_state),
-            id(sauna_fan_state),
-            id(sauna_bus_online),
-            id(sauna_state_mismatch)
-          );
+            id(sauna_temperature).update();
+            id(sauna_target_temperature).update();
+            id(sauna_timer_remaining).update();
 
 # -------------------------------------------------------------
 # Home Assistant Sensors & Diagnostics
@@ -129,6 +118,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
     icon: "mdi:thermometer"
+    lambda: |-
+      if (std::isnan(g_harvia.current_temp)) return {};
+      return g_harvia.current_temp;
 
   - platform: template
     name: "Sauna Target Temperature"
@@ -138,6 +130,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
     icon: "mdi:thermometer-chevron-up"
+    lambda: |-
+      if (std::isnan(g_harvia.target_temp)) return {};
+      return g_harvia.target_temp;
 
   - platform: template
     name: "Sauna Timer Remaining"
@@ -147,6 +142,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
     icon: "mdi:timer-outline"
+    lambda: |-
+      if (std::isnan(g_harvia.timer_remaining_min)) return {};
+      return g_harvia.timer_remaining_min;
 
   # Diagnostic Memory Sensors
   - platform: debug
@@ -174,16 +172,22 @@ binary_sensor:
     name: "Sauna Heater Active"
     id: sauna_heater_state
     icon: "mdi:radiator"
+    lambda: |-
+      return g_harvia.heater;
 
   - platform: template
     name: "Sauna Light"
     id: sauna_light_state
     icon: "mdi:lightbulb"
+    lambda: |-
+      return g_harvia.light;
 
   - platform: template
     name: "Sauna Fan"
     id: sauna_fan_state
     icon: "mdi:fan"
+    lambda: |-
+      return g_harvia.fan;
 
   - platform: template
     name: "Sauna Bus Online"
@@ -191,6 +195,8 @@ binary_sensor:
     entity_category: diagnostic
     device_class: connectivity
     icon: "mdi:check-network"
+    lambda: |-
+      return (millis() - g_harvia.last_pu_rx_time < 5000) || (millis() - g_harvia.last_disp_rx_time < 5000);
 
   # Diagnostic sensor: triggers ON if Power Unit and Display ever report conflicting states
   - platform: template
@@ -199,3 +205,5 @@ binary_sensor:
     entity_category: diagnostic
     device_class: problem
     icon: "mdi:alert-circle-outline"
+    lambda: |-
+      return g_harvia.state_mismatch;
