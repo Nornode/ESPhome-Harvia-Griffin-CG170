@@ -196,7 +196,7 @@ binary_sensor:
     device_class: connectivity
     icon: "mdi:check-network"
     lambda: |-
-      return (millis() - g_harvia.last_pu_rx_time < 5000) || (millis() - g_harvia.last_disp_rx_time < 5000);
+      return (millis() - g_harvia.last_pu_rx_time < 15000) || (millis() - g_harvia.last_disp_rx_time < 15000);
 
   # Diagnostic sensor: triggers ON if Power Unit and Display ever report conflicting states
   - platform: template

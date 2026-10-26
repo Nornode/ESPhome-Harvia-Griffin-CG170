@@ -90,11 +90,11 @@ inline void harvia_decode_packet(
   if (subtype == 'G' && len >= 14) {
     float cur_t = (float)p[7];
     float set_t = (float)p[8];
-    uint8_t relays = p[9];
+    uint8_t status_byte = p[9];
 
     // Log always in ESPHome console (unthrottled)
-    ESP_LOGI("harvia", "[%s %c%c] Temp=%.0f°C, Target=%.0f°C, Relays=0x%02X",
-             source_tag, p_type, subtype, cur_t, set_t, relays);
+    ESP_LOGI("harvia", "[%s %c%c] Temp=%.0f°C, Target=%.0f°C, Status=0x%02X",
+             source_tag, p_type, subtype, cur_t, set_t, status_byte);
 
     if (cur_t > 0 && cur_t < 130) {
       g_harvia.current_temp = cur_t;
@@ -103,24 +103,25 @@ inline void harvia_decode_packet(
       g_harvia.target_temp = set_t;
     }
 
-    g_harvia.heater = bool(relays & 0x01);
-    g_harvia.light  = bool(relays & 0x02);
-    g_harvia.fan    = bool(relays & 0x04);
+    // Note: Do NOT overwrite heater/light/fan states here.
+    // In CG170 telemetry, byte 9 is not a reliable relay bitmask and
+    // reports 0x00 during normal operation, which would falsely wipe active states.
 
     // Track state verification between Power Unit and Display
     if (p_type == 'Q') {
       g_harvia.pu_target_temp = set_t;
-      g_harvia.pu_relays = relays;
+      g_harvia.pu_relays = status_byte;
     } else {
       g_harvia.disp_target_temp = set_t;
-      g_harvia.disp_relays = relays;
+      g_harvia.disp_relays = status_byte;
     }
 
-    if (g_harvia.pu_relays >= 0 && g_harvia.disp_relays >= 0) {
-      g_harvia.state_mismatch = (g_harvia.pu_relays != g_harvia.disp_relays);
+    // Only flag mismatch if target temperatures disagree
+    if (!std::isnan(g_harvia.pu_target_temp) && !std::isnan(g_harvia.disp_target_temp)) {
+      g_harvia.state_mismatch = (g_harvia.pu_target_temp != g_harvia.disp_target_temp);
       if (g_harvia.state_mismatch) {
-        ESP_LOGW("harvia", "State mismatch detected! PowerUnit relays=0x%02X vs Display relays=0x%02X",
-                 g_harvia.pu_relays, g_harvia.disp_relays);
+        ESP_LOGW("harvia", "Target temperature mismatch! PowerUnit=%.1f°C vs Display=%.1f°C",
+                 g_harvia.pu_target_temp, g_harvia.disp_target_temp);
       }
     }
   }
@@ -150,7 +151,7 @@ inline void harvia_decode_packet(
   else if (subtype == 'C' && len >= 10) {
     uint8_t cmd = p[6];
     uint8_t state = p[7];
-    if (cmd == 0x22 || cmd == 0x23) {
+    if (cmd == 0x22) {
       g_harvia.heater = (state == 0x01);
       ESP_LOGI("harvia", "[%s %c%c] Heater toggle: %s", source_tag, p_type, subtype, state == 0x01 ? "ON" : "OFF");
     } else if (cmd == 0x3C) {
@@ -221,19 +222,38 @@ inline void harvia_process_packet(
       break; // Need more bytes from the next chunk
     }
 
-    // 2. Scan candidate packet lengths (Harvia frames range from 9 to 18 bytes)
+    // 2. Determine candidate packet lengths based on frame subtype to avoid false CRC matches
+    char subtype = (char)rx.buf[2];
+    std::vector<size_t> candidate_lengths;
+    if (subtype == 'B') {
+      candidate_lengths = {9};
+    } else if (subtype == 'C') {
+      candidate_lengths = {10};
+    } else if (subtype == 'D') {
+      candidate_lengths = {11};
+    } else if (subtype == 'G') {
+      candidate_lengths = {14};
+    } else if (subtype == 'H') {
+      candidate_lengths = {15, 16};
+    } else {
+      // Fallback for unexpected subtypes (scan from smallest to max accumulated)
+      for (size_t l = 9; l <= std::min(rx.buf.size(), (size_t)24); l++) {
+        candidate_lengths.push_back(l);
+      }
+    }
+
     bool packet_parsed = false;
-    size_t max_scan = std::min(rx.buf.size(), (size_t)24);
+    for (size_t l : candidate_lengths) {
+      if (rx.buf.size() >= l) {
+        uint16_t exp_crc = ((uint16_t)rx.buf[l - 2] << 8) | rx.buf[l - 1];
+        uint16_t calc_crc = harvia_crc16(&rx.buf[1], l - 3);
 
-    for (size_t l = 9; l <= max_scan; l++) {
-      uint16_t exp_crc = ((uint16_t)rx.buf[l - 2] << 8) | rx.buf[l - 1];
-      uint16_t calc_crc = harvia_crc16(&rx.buf[1], l - 3);
-
-      if (calc_crc == exp_crc) {
-        harvia_decode_packet(rx.buf.data(), l, source_tag);
-        rx.buf.erase(rx.buf.begin(), rx.buf.begin() + l);
-        packet_parsed = true;
-        break;
+        if (calc_crc == exp_crc) {
+          harvia_decode_packet(rx.buf.data(), l, source_tag);
+          rx.buf.erase(rx.buf.begin(), rx.buf.begin() + l);
+          packet_parsed = true;
+          break;
+        }
       }
     }
 
@@ -262,8 +282,8 @@ inline void harvia_sync_to_homeassistant(
 
   uint32_t now = millis();
 
-  // Bus is considered online if packets were heard from either side within last 5 seconds
-  bool is_online = (now - g_harvia.last_pu_rx_time < 5000) || (now - g_harvia.last_disp_rx_time < 5000);
+  // Bus is considered online if packets were heard from either side within last 15 seconds
+  bool is_online = (now - g_harvia.last_pu_rx_time < 15000) || (now - g_harvia.last_disp_rx_time < 15000);
   if (online != nullptr && (!online->has_state() || online->state != is_online)) {
     online->publish_state(is_online);
   }

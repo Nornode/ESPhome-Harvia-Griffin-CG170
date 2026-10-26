@@ -89,16 +89,16 @@ Sent when setting the target temperature:
 
 ### 3.5 Relay Control Commands (`TQC` / `TRC`)
 
-All relay switches share the `TQC` / `TRC` framing with command codes:
+Relay and device control switch commands share `TQC` / `TRC` framing with command codes:
 
-| Output Device | Command Code | ON Packet (Master $\rightarrow$ Display) | OFF Packet (Master $\rightarrow$ Display) |
+| Output Device | Command Code | ON Packet (Display $\rightarrow$ Power Unit) | OFF Packet |
 | :--- | :--- | :--- | :--- |
-| **Heater** | `0x22` / `0x23` | `[54 51 43 09 07 51 22 01 16 0C]` | `[54 51 43 09 07 51 23 00 1B B0]` (Response `TRC`) |
-| **Fan** | `0x32` | `[54 51 43 09 07 51 32 01 15 7F]` | `[54 51 43 09 07 51 32 00 05 5E]` |
-| **Light** | `0x3C` | `[54 51 43 09 07 51 3C 01 36 70]` | `[54 51 43 09 07 51 3C 00 26 51]` |
+| **Heater** | `0x22` | `[54 52 43 07 0A 51 22 01 38 A0]` | Turned off via Timer packet `TQD 51 1E 00 00` |
+| **Fan** | `0x32` | `[54 52 43 07 0A 51 32 01 3B D3]` | `[54 52 43 07 0A 51 32 00 2B F2]` |
+| **Light** | `0x3C` | `[54 52 43 07 0A 51 3C 01 18 DC]` | `[54 52 43 07 0A 51 3C 00 08 FD]` |
 
-### 3.6 Relay Status Bitmask (`TQG` Telemetry Byte 9)
-In packet `TQG: [54 51 47 09 07 51 9D <CUR> <SET> <RELAY_MASK> 00 00 <CRC>]`:
-* **Bit 0 (`0x01`):** Heater Relay Active
-* **Bit 1 (`0x02`):** Light Relay Active
-* **Bit 2 (`0x04`):** Fan Relay Active
+> *Note on `0x23 0x00`:* Frames with `51 23 00` (`[54 52 43 07 0A 51 23 00 1B B0]`) are sent periodically by the display during normal operation (both idle and active heating) and do not represent heater shutdown.
+
+### 3.6 Telemetry Status Byte (`TQG` / `TRG` Byte 9)
+In packet `TQG / TRG: [54 51/52 47 ... 51 9D <CUR> <SET> <STATUS> 00 00 <CRC>]`:
+* **Byte 9 (`<STATUS>`):** General status byte (often `0x00` during active heating, `0x04`, or `0x0C`). It is **not** a direct relay bitmask and should not be used to override discrete device states.
